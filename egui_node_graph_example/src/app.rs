@@ -66,6 +66,7 @@ impl MyValueType {
     }
 }
 
+// CONFIG STEP 1: Define your node templates
 /// NodeTemplate is a mechanism to define node templates. It's what the graph
 /// will display in the "new node" popup. The user code needs to tell the
 /// library how to convert a NodeTemplate into a Node.
@@ -79,6 +80,7 @@ pub enum MyNodeTemplate {
     AddVector,
     SubtractVector,
     VectorTimesScalar,
+    MultiplyScalar,
 }
 
 /// The response type is used to encode side-effects produced when drawing a
@@ -128,6 +130,7 @@ impl NodeTemplateTrait for MyNodeTemplate {
     type UserState = MyGraphState;
     type CategoryType = &'static str;
 
+    // CONFIG STEP 2: Implement the NodeTemplateTrait for your node template
     fn node_finder_label(&self, _user_state: &mut Self::UserState) -> Cow<'_, str> {
         Cow::Borrowed(match self {
             MyNodeTemplate::MakeScalar => "New scalar",
@@ -137,15 +140,18 @@ impl NodeTemplateTrait for MyNodeTemplate {
             MyNodeTemplate::AddVector => "Vector add",
             MyNodeTemplate::SubtractVector => "Vector subtract",
             MyNodeTemplate::VectorTimesScalar => "Vector times scalar",
+            MyNodeTemplate::MultiplyScalar => "Multiply Scalar",
         })
     }
 
+    // CONFIG STEP 3: Implement the node_finder_categories method.
     // this is what allows the library to show collapsible lists in the node finder.
     fn node_finder_categories(&self, _user_state: &mut Self::UserState) -> Vec<&'static str> {
         match self {
             MyNodeTemplate::MakeScalar
             | MyNodeTemplate::AddScalar
             | MyNodeTemplate::SubtractScalar => vec!["Scalar"],
+            MyNodeTemplate::MultiplyScalar => vec!["Scalar"],
             MyNodeTemplate::MakeVector
             | MyNodeTemplate::AddVector
             | MyNodeTemplate::SubtractVector => vec!["Vector"],
@@ -206,6 +212,7 @@ impl NodeTemplateTrait for MyNodeTemplate {
             graph.add_output_param(node_id, name.to_string(), MyDataType::Vec2);
         };
 
+        // CONFIG STEP 4: Implement the build_node method for your node template
         match self {
             MyNodeTemplate::AddScalar => {
                 // The first input param doesn't use the closure so we can comment
@@ -257,28 +264,49 @@ impl NodeTemplateTrait for MyNodeTemplate {
                 input_scalar(graph, "value");
                 output_scalar(graph, "out");
             }
+            MyNodeTemplate::MultiplyScalar => {
+                graph.add_input_param(
+                    node_id,
+                    "A".into(),
+                    MyDataType::Scalar,
+                    MyValueType::Scalar { value: 0.0 },
+                    InputParamKind::ConnectionOrConstant,
+                    true,
+                );
+                graph.add_input_param(
+                    node_id,
+                    "B".into(),
+                    MyDataType::Scalar,
+                    MyValueType::Scalar { value: 0.0 },
+                    InputParamKind::ConnectionOrConstant,
+                    true,
+                );
+                graph.add_output_param(node_id, "out".into(), MyDataType::Scalar);
+            }
         }
     }
 }
 
 pub struct RegisteredNodeTypes {
-  pub types: Vec<MyNodeTemplate>,
+    pub types: Vec<MyNodeTemplate>,
 }
 
+// CONFIG STEP 5: Register your node types
 impl Default for RegisteredNodeTypes {
-  fn default() -> Self {
-    Self {
-      types: vec![
-            MyNodeTemplate::MakeScalar,
-            MyNodeTemplate::MakeVector,
-            MyNodeTemplate::AddScalar,
-            MyNodeTemplate::SubtractScalar,
-            MyNodeTemplate::AddVector,
-            MyNodeTemplate::SubtractVector,
-            MyNodeTemplate::VectorTimesScalar,
-      ]
+    fn default() -> Self {
+        Self {
+            types: vec![
+                MyNodeTemplate::MakeScalar,
+                MyNodeTemplate::MakeVector,
+                MyNodeTemplate::AddScalar,
+                MyNodeTemplate::SubtractScalar,
+                MyNodeTemplate::AddVector,
+                MyNodeTemplate::SubtractVector,
+                MyNodeTemplate::VectorTimesScalar,
+                MyNodeTemplate::MultiplyScalar, // Add your new node here
+            ],
+        }
     }
-  }
 }
 
 impl NodeTemplateIter for &RegisteredNodeTypes {
@@ -539,6 +567,8 @@ pub fn evaluate_node(
 
     let node = &graph[node_id];
     let mut evaluator = Evaluator::new(graph, outputs_cache, node_id);
+
+    // CONFIG STEP 6: Implement the evaluation logic for your node template
     match node.user_data.template {
         MyNodeTemplate::AddScalar => {
             let a = evaluator.input_scalar("A")?;
@@ -573,6 +603,11 @@ pub fn evaluate_node(
         MyNodeTemplate::MakeScalar => {
             let value = evaluator.input_scalar("value")?;
             evaluator.output_scalar("out", value)
+        }
+        MyNodeTemplate::MultiplyScalar => {
+            let a = evaluator.input_scalar("A")?;
+            let b = evaluator.input_scalar("B")?;
+            evaluator.output_scalar("out", a * b)
         }
     }
 }
