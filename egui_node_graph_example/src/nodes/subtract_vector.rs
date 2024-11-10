@@ -28,7 +28,7 @@ pub fn build_node(graph: &mut MyGraph, node_id: NodeId) {
     graph.add_output_param(node_id, "out".to_string(), MyDataType::Vec2);
 }
 
-pub fn evaluate(evaluator: &mut Evaluator) -> anyhow::Result<MyValueType> {
+pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     let v1 = evaluator.input_vector("v1")?;
     let v2 = evaluator.input_vector("v2")?;
     evaluator.output_vector("out", v1 - v2)

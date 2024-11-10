@@ -1,5 +1,3 @@
-// src/types.rs
-
 use crate::nodes;
 use crate::utils::Evaluator;
 use eframe::egui::{self, DragValue};
@@ -83,7 +81,7 @@ pub struct MyGraphState {
 pub struct NodeDefinition {
     pub template: MyNodeTemplate,
     pub build: fn(&mut MyGraph, NodeId),
-    pub evaluate: fn(&mut Evaluator) -> anyhow::Result<MyValueType>,
+    pub evaluate: fn(&mut Evaluator<'_>) -> anyhow::Result<MyValueType>,
     pub label: &'static str,
     pub categories: &'static [&'static str],
 }
@@ -209,7 +207,7 @@ impl NodeTemplateTrait for MyNodeTemplate {
     fn build_node(
         &self,
         graph: &mut Graph<Self::NodeData, Self::DataType, Self::ValueType>,
-        user_state: &mut Self::UserState,
+        _user_state: &mut Self::UserState,
         node_id: NodeId,
     ) {
         if let Some(def) = NodeDefinition::all_definitions()

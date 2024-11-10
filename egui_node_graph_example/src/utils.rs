@@ -1,6 +1,4 @@
-// src/utils.rs
-
-use crate::types::{MyGraph, MyNodeTemplate, MyValueType, NodeDefinition};
+use crate::types::{MyGraph, MyValueType, NodeDefinition};
 use anyhow::Result;
 use egui_node_graph::*;
 use std::collections::HashMap;

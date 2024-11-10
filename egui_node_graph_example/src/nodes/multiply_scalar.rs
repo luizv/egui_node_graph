@@ -24,7 +24,7 @@ pub fn build_node(graph: &mut MyGraph, node_id: NodeId) {
     graph.add_output_param(node_id, "out".to_string(), MyDataType::Scalar);
 }
 
-pub fn evaluate(evaluator: &mut Evaluator) -> anyhow::Result<MyValueType> {
+pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     let a = evaluator.input_scalar("A")?;
     let b = evaluator.input_scalar("B")?;
     evaluator.output_scalar("out", a * b)

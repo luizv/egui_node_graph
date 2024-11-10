@@ -1,8 +1,6 @@
-// src/app.rs
-
-use crate::nodes; // Import the nodes module
+// Import the nodes module
 use crate::types::*;
-use crate::utils::{evaluate_node, OutputsCache};
+use crate::utils::evaluate_node;
 use eframe::egui::{self, TextStyle};
 use egui_node_graph::*;
 use std::collections::HashMap;
