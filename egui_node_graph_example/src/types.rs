@@ -65,6 +65,7 @@ pub enum MyNodeTemplate {
     SubtractVector,
     VectorTimesScalar,
     ImageFilter,
+    MakeImage,
 }
 
 /// The response type is used to encode side-effects produced when drawing a node in the graph.
@@ -153,6 +154,13 @@ impl NodeDefinition {
                 build: nodes::image_filter::build_node, // Define this in your nodes module
                 evaluate: nodes::image_filter::evaluate, // Define evaluation logic for image filtering
                 label: "Image Filter",
+                categories: &["Image"],
+            },
+            NodeDefinition {
+                template: MyNodeTemplate::MakeImage,
+                build: nodes::make_image::build_node,
+                evaluate: nodes::make_image::evaluate,
+                label: "Make Image",
                 categories: &["Image"],
             },
         ]
@@ -285,10 +293,26 @@ impl WidgetValueTrait for MyValueType {
                 ui.label(param_name);
                 // Display image information
                 ui.label(format!("Image data length: {} bytes", data.len()));
-                // Optional: Add a button or UI element for more actions (e.g., "Load Image", "Display Image Preview")
+
+                // Button to select and load an image
                 if ui.button("Load Image").clicked() {
-                    // Example: You can add image loading logic here (using dialogs, etc.)
-                    println!("Image load button clicked");
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        // Desktop-specific file loading logic
+                        if let Some(file_path) = open_file_dialog() {
+                            // Read the selected file into bytes and assign it to `data`
+                            match std::fs::read(file_path) {
+                                Ok(image_data) => *data = image_data,
+                                Err(err) => eprintln!("Failed to load image: {}", err),
+                            }
+                        }
+                    }
+
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        // Placeholder for Web-specific behavior
+                        eprintln!("Image loading is not supported in the Web environment for this implementation.");
+                    }
                 }
             }
             _ => {
