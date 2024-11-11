@@ -16,13 +16,15 @@ pub struct MyNodeData {
 pub enum MyDataType {
     Scalar,
     Vec2,
+    Image,
 }
 
 /// Input parameters can optionally have a constant value.
-#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MyValueType {
     Vec2 { value: egui::Vec2 },
     Scalar { value: f32 },
+    Image { data: Vec<u8> }, // New image variant
 }
 
 impl Default for MyValueType {
@@ -62,6 +64,7 @@ pub enum MyNodeTemplate {
     AddVector,
     SubtractVector,
     VectorTimesScalar,
+    ImageFilter,
 }
 
 /// The response type is used to encode side-effects produced when drawing a node in the graph.
@@ -145,6 +148,13 @@ impl NodeDefinition {
                 label: "Vector Times Scalar",
                 categories: &["Vector", "Scalar"],
             },
+            NodeDefinition {
+                template: MyNodeTemplate::ImageFilter,
+                build: nodes::image_filter::build_node, // Define this in your nodes module
+                evaluate: nodes::image_filter::evaluate, // Define evaluation logic for image filtering
+                label: "Image Filter",
+                categories: &["Image"],
+            },
         ]
     }
 }
@@ -155,6 +165,7 @@ impl DataTypeTrait<MyGraphState> for MyDataType {
         match self {
             MyDataType::Scalar => egui::Color32::from_rgb(38, 109, 211),
             MyDataType::Vec2 => egui::Color32::from_rgb(238, 207, 109),
+            MyDataType::Image => egui::Color32::from_rgb(255, 105, 180), // Assign a color for images
         }
     }
 
@@ -162,6 +173,7 @@ impl DataTypeTrait<MyGraphState> for MyDataType {
         match self {
             MyDataType::Scalar => Cow::Borrowed("Scalar"),
             MyDataType::Vec2 => Cow::Borrowed("Vec2"),
+            MyDataType::Image => Cow::Borrowed("Image"), // Name for the new data type
         }
     }
 }
@@ -268,6 +280,20 @@ impl WidgetValueTrait for MyValueType {
                     ui.label(param_name);
                     ui.add(DragValue::new(value));
                 });
+            }
+            MyValueType::Image { data } => {
+                ui.label(param_name);
+                // Display image information
+                ui.label(format!("Image data length: {} bytes", data.len()));
+                // Optional: Add a button or UI element for more actions (e.g., "Load Image", "Display Image Preview")
+                if ui.button("Load Image").clicked() {
+                    // Example: You can add image loading logic here (using dialogs, etc.)
+                    println!("Image load button clicked");
+                }
+            }
+            _ => {
+                // Handle unexpected cases or provide a fallback
+                println!("Unhandled MyValueType variant");
             }
         }
         Vec::new()

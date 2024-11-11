@@ -72,7 +72,7 @@ fn populate_output(
     value: MyValueType,
 ) -> Result<MyValueType> {
     let output_id = graph[node_id].get_output(param_name)?;
-    outputs_cache.insert(output_id, value);
+    outputs_cache.insert(output_id, value.clone());
     Ok(value)
 }
 
@@ -86,15 +86,16 @@ fn evaluate_input(
 
     if let Some(other_output_id) = graph.connection(input_id) {
         if let Some(other_value) = outputs_cache.get(&other_output_id) {
-            Ok(*other_value)
+            Ok(other_value.clone())
         } else {
             evaluate_node(graph, graph[other_output_id].node, outputs_cache)?;
-            Ok(*outputs_cache
+            Ok(outputs_cache
                 .get(&other_output_id)
-                .expect("Cache should be populated"))
+                .expect("Cache should be populated")
+                .clone())
         }
     } else {
-        Ok(graph[input_id].value)
+        Ok(graph[input_id].value.clone())
     }
 }
 
