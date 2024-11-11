@@ -106,3 +106,65 @@ impl eframe::App for NodeGraphExample {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nodes;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_node_graph_example_initialization() {
+        let app = NodeGraphExample::default();
+        assert!(app.state.graph.nodes.is_empty());
+        assert!((&app.node_types).all_kinds().len() > 0);
+        assert!(app.user_state.active_node.is_none());
+    }
+
+    #[test]
+    fn test_set_active_node() {
+        let mut app = NodeGraphExample::default();
+        let node_id = app.state.graph.add_node(
+            "Test Node".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        app.user_state.active_node = Some(node_id);
+        assert_eq!(app.user_state.active_node, Some(node_id));
+    }
+
+    #[test]
+    fn test_clear_active_node() {
+        let mut app = NodeGraphExample::default();
+        let node_id = app.state.graph.add_node(
+            "Test Node".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        app.user_state.active_node = Some(node_id);
+        app.user_state.active_node = None;
+        assert!(app.user_state.active_node.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_node() {
+        let mut app = NodeGraphExample::default();
+        let node_id = app.state.graph.add_node(
+            "MakeScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        nodes::make_scalar::build_node(&mut app.state.graph, node_id);
+        let input_id = app.state.graph[node_id].get_input("value").unwrap();
+        app.state.graph[input_id].value = MyValueType::Scalar { value: 42.0 };
+        let mut outputs_cache = HashMap::new();
+        let result = evaluate_node(&app.state.graph, node_id, &mut outputs_cache).unwrap();
+        assert_eq!(result, MyValueType::Scalar { value: 42.0 });
+    }
+}

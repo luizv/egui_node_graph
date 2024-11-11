@@ -97,3 +97,175 @@ fn evaluate_input(
         Ok(graph[input_id].value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nodes;
+    use crate::types::*;
+
+    #[test]
+    fn test_evaluate_make_scalar_node() {
+        let mut graph = MyGraph::new();
+
+        let node_id = graph.add_node(
+            "MakeScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+
+        nodes::make_scalar::build_node(&mut graph, node_id);
+
+        let input_id = graph[node_id].get_input("value").unwrap();
+        graph[input_id].value = MyValueType::Scalar { value: 42.0 };
+
+        let mut outputs_cache = OutputsCache::new();
+
+        let result = evaluate_node(&graph, node_id, &mut outputs_cache).unwrap();
+
+        assert_eq!(result, MyValueType::Scalar { value: 42.0 });
+    }
+
+    #[test]
+    fn test_evaluate_add_scalar_node() {
+        let mut graph = MyGraph::new();
+
+        let node_id1 = graph.add_node(
+            "MakeScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        nodes::make_scalar::build_node(&mut graph, node_id1);
+        let input_id = graph[node_id1].get_input("value").unwrap();
+        graph[input_id].value = MyValueType::Scalar { value: 10.0 };
+
+        let node_id2 = graph.add_node(
+            "MakeScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        nodes::make_scalar::build_node(&mut graph, node_id2);
+        let input_id = graph[node_id2].get_input("value").unwrap();
+        graph[input_id].value = MyValueType::Scalar { value: 32.0 };
+
+        let add_node_id = graph.add_node(
+            "AddScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::AddScalar,
+            },
+            |_, _| {},
+        );
+        nodes::add_scalar::build_node(&mut graph, add_node_id);
+
+        graph.add_connection(
+            graph[node_id1].get_output("out").unwrap(),
+            graph[add_node_id].get_input("A").unwrap(),
+        );
+
+        graph.add_connection(
+            graph[node_id2].get_output("out").unwrap(),
+            graph[add_node_id].get_input("B").unwrap(),
+        );
+
+        let mut outputs_cache = OutputsCache::new();
+
+        let result = evaluate_node(&graph, add_node_id, &mut outputs_cache).unwrap();
+
+        assert_eq!(result, MyValueType::Scalar { value: 42.0 });
+    }
+
+    #[test]
+    fn test_evaluate_vector_times_scalar_node() {
+        let mut graph = MyGraph::new();
+
+        let vector_node_id = graph.add_node(
+            "MakeVector".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeVector,
+            },
+            |_, _| {},
+        );
+        nodes::make_vector::build_node(&mut graph, vector_node_id);
+        let input_x = graph[vector_node_id].get_input("x").unwrap();
+        let input_y = graph[vector_node_id].get_input("y").unwrap();
+
+        graph[input_x].value = MyValueType::Scalar { value: 2.0 };
+        graph[input_y].value = MyValueType::Scalar { value: 3.0 };
+
+        let scalar_node_id = graph.add_node(
+            "MakeScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+        nodes::make_scalar::build_node(&mut graph, scalar_node_id);
+        let input_id = graph[scalar_node_id].get_input("value").unwrap();
+        graph[input_id].value = MyValueType::Scalar { value: 4.0 };
+
+        let vector_times_scalar_node_id = graph.add_node(
+            "VectorTimesScalar".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::VectorTimesScalar,
+            },
+            |_, _| {},
+        );
+        nodes::vector_times_scalar::build_node(&mut graph, vector_times_scalar_node_id);
+
+        graph.add_connection(
+            graph[vector_node_id].get_output("out").unwrap(),
+            graph[vector_times_scalar_node_id]
+                .get_input("vector")
+                .unwrap(),
+        );
+
+        graph.add_connection(
+            graph[scalar_node_id].get_output("out").unwrap(),
+            graph[vector_times_scalar_node_id]
+                .get_input("scalar")
+                .unwrap(),
+        );
+
+        let mut outputs_cache = OutputsCache::new();
+
+        let result =
+            evaluate_node(&graph, vector_times_scalar_node_id, &mut outputs_cache).unwrap();
+
+        assert_eq!(
+            result,
+            MyValueType::Vec2 {
+                value: egui::Vec2::new(8.0, 12.0)
+            }
+        );
+    }
+
+    #[test]
+    fn test_evaluate_node_with_missing_input() {
+        let mut graph = MyGraph::default();
+        let mut outputs_cache = HashMap::new();
+
+        let node_id = graph.add_node(
+            "Test Node".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::AddScalar,
+            },
+            |_, _| {}, // Replace `None` with an empty closure
+        );
+
+        // We intentionally do NOT connect or set a value for an expected input
+        let result = evaluate_node(&graph, node_id, &mut outputs_cache);
+
+        // Check if an error is returned
+        assert!(
+            result.is_err(),
+            "Expected an error due to missing input, but got {:?}",
+            result
+        );
+    }
+}

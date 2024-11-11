@@ -19,7 +19,7 @@ pub enum MyDataType {
 }
 
 /// Input parameters can optionally have a constant value.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MyValueType {
     Vec2 { value: egui::Vec2 },
     Scalar { value: f32 },
@@ -316,3 +316,106 @@ impl NodeDataTrait for MyNodeData {
 pub type MyGraph = Graph<MyNodeData, MyDataType, MyValueType>;
 pub type MyEditorState =
     GraphEditorState<MyNodeData, MyDataType, MyValueType, MyNodeTemplate, MyGraphState>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_myvaluetype() {
+        let default_value = MyValueType::default();
+        assert_eq!(default_value, MyValueType::Scalar { value: 0.0 });
+    }
+
+    #[test]
+    fn test_try_to_scalar() {
+        let value = MyValueType::Scalar { value: 42.0 };
+        let result = value.try_to_scalar();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42.0);
+
+        let value = MyValueType::Vec2 {
+            value: egui::Vec2::new(1.0, 2.0),
+        };
+        let result = value.try_to_scalar();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_try_to_vec2() {
+        let value = MyValueType::Vec2 {
+            value: egui::Vec2::new(3.0, 4.0),
+        };
+        let result = value.try_to_vec2();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), egui::Vec2::new(3.0, 4.0));
+
+        let value = MyValueType::Scalar { value: 5.0 };
+        let result = value.try_to_vec2();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_node_definition_retrieval() {
+        let definitions = NodeDefinition::all_definitions();
+        assert!(definitions.len() > 0);
+        assert!(definitions
+            .iter()
+            .any(|def| def.template == MyNodeTemplate::MakeScalar));
+    }
+
+    #[test]
+    fn test_node_template_label() {
+        let template = MyNodeTemplate::MakeScalar;
+        let label = template.node_finder_label(&mut MyGraphState::default());
+        assert_eq!(label, Cow::Borrowed("New Scalar"));
+
+        let unknown_template = MyNodeTemplate::MultiplyScalar; // Assuming MultiplyScalar is known
+        let label = unknown_template.node_finder_label(&mut MyGraphState::default());
+        assert!(label != Cow::Borrowed("Unknown"));
+    }
+
+    #[test]
+    fn test_build_node() {
+        let mut graph = MyGraph::default();
+        let node_id = graph.add_node(
+            "Test Node".to_string(),
+            MyNodeData {
+                template: MyNodeTemplate::MakeScalar,
+            },
+            |_, _| {},
+        );
+
+        MyNodeTemplate::MakeScalar.build_node(&mut graph, &mut MyGraphState::default(), node_id);
+        let input_exists = graph[node_id].get_input("value").is_ok();
+        assert!(input_exists);
+    }
+
+    #[test]
+    fn test_data_type_color() {
+        let scalar_color = MyDataType::Scalar.data_type_color(&mut MyGraphState::default());
+        let vec2_color = MyDataType::Vec2.data_type_color(&mut MyGraphState::default());
+        assert_ne!(scalar_color, vec2_color);
+    }
+
+    // #[test]
+    // fn test_widget_value_trait_scalar() {
+    //     let mut scalar_value = MyValueType::Scalar { value: 10.0 };
+    //     // Skipping `Ui` mock creation as it's complex; you may need integration testing here.
+    //     // This part assumes you have a way to test UI interactions separately.
+    // }
+
+    // #[test]
+    // fn test_widget_value_trait_vec2() {
+    //     let mut vec2_value = MyValueType::Vec2 {
+    //         value: egui::Vec2::new(1.0, 2.0),
+    //     };
+    //     // Skipping `Ui` mock creation; similar reasoning as above.
+    // }
+
+    #[test]
+    fn test_graph_state_default() {
+        let state = MyGraphState::default();
+        assert!(state.active_node.is_none());
+    }
+}
