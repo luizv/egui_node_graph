@@ -2,7 +2,9 @@ use crate::nodes;
 use crate::utils::Evaluator;
 use derivative::Derivative;
 use eframe::egui::{self, DragValue};
+use eframe::web_sys::console;
 use egui_node_graph::*;
+use image::GenericImageView;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use wasm_bindgen_futures::spawn_local;
@@ -434,6 +436,50 @@ impl NodeDataTrait for MyNodeData {
             }
         }
 
+        //Adicione a lógica para exibir a imagem carregada
+        // Adicione a lógica para exibir a imagem carregada
+        // Adicione a lógica para exibir a imagem carregada
+        // Adicione a lógica para exibir a imagem carregada
+        if _graph[node_id].user_data.template == MyNodeTemplate::MakeImage {
+            if let Ok(input_id) = _graph[node_id].get_input("image") {
+                if let MyValueType::Image { data, .. } = &_graph[input_id].value {
+                    if !data.is_empty() {
+                        // Carregue a imagem usando a biblioteca `image`
+                        let image = image::load_from_memory(&data).expect("Failed to load image");
+                        let (width, height) = image.dimensions();
+                        let image_buffer = image.to_rgba8();
+                        let pixels = image_buffer.into_vec();
+
+                        // Verifique se os dados da imagem são válidos
+                        if width * height * 4 == pixels.len() as u32 {
+                            // Converta os dados da imagem para uma textura egui
+                            let texture_id = ui.ctx().load_texture(
+                                format!("node_image_{:?}", node_id),
+                                egui::ColorImage::from_rgba_unmultiplied(
+                                    [width as usize, height as usize],
+                                    &pixels,
+                                ),
+                                Default::default(),
+                            );
+
+                            // Desenhe a imagem
+                            ui.add(egui::Image::new(&texture_id));
+                        } else {
+                            // Imprima os valores no console do navegador
+                            console::log_1(
+                                &format!(
+                                    "width: {}, height: {}, pixels.len(): {}",
+                                    width,
+                                    height,
+                                    pixels.len()
+                                )
+                                .into(),
+                            );
+                        }
+                    }
+                }
+            }
+        }
         responses
     }
 }

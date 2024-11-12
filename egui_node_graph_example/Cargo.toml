@@ -1,7 +1,7 @@
 [package]
 name = "egui_node_graph_example"
 version = "0.1.0"
-authors = ["setzer22"]
+authors = ["setzer22 && Mods by Luiz Veloso"]
 edition = "2021"
 rust-version = "1.71"
 
@@ -30,6 +30,7 @@ rfd = "0.15"
 async-std = "1.13"
 futures = "0.3.31"
 derivative = "2.2"
+image = "0.23"
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
