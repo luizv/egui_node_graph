@@ -7,7 +7,7 @@ pub fn build_node(graph: &mut MyGraph, node_id: NodeId) {
         node_id,
         "input_image".to_string(),
         crate::types::MyDataType::Image,
-        MyValueType::Image { data: vec![] },
+        MyValueType::default_image(),
         InputParamKind::ConnectionOrConstant,
         true,
     );
@@ -25,7 +25,7 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     let input_image = evaluator.evaluate_input("input_image")?;
 
     // Ensure the input is of type `Image`.
-    let image_data = if let MyValueType::Image { data } = input_image {
+    let image_data = if let MyValueType::Image { data, .. } = input_image {
         data
     } else {
         anyhow::bail!("Expected input of type Image, got {:?}", input_image);
@@ -40,6 +40,7 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
         "filtered_image",
         MyValueType::Image {
             data: filtered_data,
+            pending_image: None,
         },
     )
 }
@@ -67,6 +68,7 @@ mod tests {
         let input_id = graph[node_id].get_input("input_image").unwrap();
         graph[input_id].value = MyValueType::Image {
             data: vec![0, 128, 255],
+            pending_image: None,
         };
 
         let mut outputs_cache = OutputsCache::new();
@@ -75,7 +77,7 @@ mod tests {
         let result = evaluate_node(&graph, node_id, &mut outputs_cache).unwrap();
 
         // Check the output value.
-        if let MyValueType::Image { data } = result {
+        if let MyValueType::Image { data, .. } = result {
             assert_eq!(data, vec![255, 127, 0]); // Expected inverted values.
         } else {
             panic!("Expected output of type Image, got {:?}", result);

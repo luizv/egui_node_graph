@@ -1,9 +1,11 @@
 use crate::nodes;
 use crate::utils::Evaluator;
+use derivative::Derivative;
 use eframe::egui::{self, DragValue};
 use egui_node_graph::*;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use wasm_bindgen_futures::spawn_local;
 
 /// The NodeData holds a custom data struct inside each node.
 #[derive(Debug, Serialize, Deserialize)]
@@ -20,16 +22,71 @@ pub enum MyDataType {
 }
 
 /// Input parameters can optionally have a constant value.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Derivative, Serialize, Deserialize)]
 pub enum MyValueType {
-    Vec2 { value: egui::Vec2 },
-    Scalar { value: f32 },
-    Image { data: Vec<u8> }, // New image variant
+    Vec2 {
+        value: egui::Vec2,
+    },
+    Scalar {
+        value: f32,
+    },
+    Image {
+        data: Vec<u8>,
+        #[serde(skip)]
+        pending_image: Option<futures::channel::oneshot::Receiver<Vec<u8>>>,
+    },
+}
+
+impl Clone for MyValueType {
+    fn clone(&self) -> Self {
+        match self {
+            MyValueType::Vec2 { value } => MyValueType::Vec2 { value: *value },
+            MyValueType::Scalar { value } => MyValueType::Scalar { value: *value },
+            MyValueType::Image { data, .. } => MyValueType::Image {
+                data: data.clone(),
+                pending_image: None,
+            },
+        }
+    }
+}
+
+impl PartialEq for MyValueType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (MyValueType::Vec2 { value: a }, MyValueType::Vec2 { value: b }) => a == b,
+            (MyValueType::Scalar { value: a }, MyValueType::Scalar { value: b }) => a == b,
+            (MyValueType::Image { data: a, .. }, MyValueType::Image { data: b, .. }) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl std::fmt::Debug for MyValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MyValueType::Vec2 { value } => f.debug_struct("Vec2").field("value", value).finish(),
+            MyValueType::Scalar { value } => {
+                f.debug_struct("Scalar").field("value", value).finish()
+            }
+            MyValueType::Image { data, .. } => {
+                f.debug_struct("Image").field("data", &data.len()).finish()
+            }
+        }
+    }
 }
 
 impl Default for MyValueType {
     fn default() -> Self {
         Self::Scalar { value: 0.0 }
+    }
+}
+
+impl MyValueType {
+    pub fn default_image() -> Self {
+        Self::Image {
+            data: vec![],
+            pending_image: None,
+        }
     }
 }
 
@@ -265,6 +322,7 @@ impl WidgetValueTrait for MyValueType {
     type Response = MyResponse;
     type UserState = MyGraphState;
     type NodeData = MyNodeData;
+
     fn value_widget(
         &mut self,
         param_name: &str,
@@ -289,37 +347,54 @@ impl WidgetValueTrait for MyValueType {
                     ui.add(DragValue::new(value));
                 });
             }
-            MyValueType::Image { data } => {
+            MyValueType::Image {
+                data,
+                pending_image,
+            } => {
                 ui.label(param_name);
-                // Display image information
                 ui.label(format!("Image data length: {} bytes", data.len()));
 
-                // Button to select and load an image
                 if ui.button("Load Image").clicked() {
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        // Desktop-specific file loading logic
-                        if let Some(file_path) = open_file_dialog() {
-                            // Read the selected file into bytes and assign it to `data`
-                            match std::fs::read(file_path) {
-                                Ok(image_data) => *data = image_data,
-                                Err(err) => eprintln!("Failed to load image: {}", err),
-                            }
-                        }
-                    }
+                    let task = rfd::AsyncFileDialog::new()
+                        .add_filter("Image files", &["jpg", "jpeg", "png"])
+                        .pick_file();
 
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        // Placeholder for Web-specific behavior
-                        eprintln!("Image loading is not supported in the Web environment for this implementation.");
+                    // Cria um canal para receber os dados carregados
+                    let (tx, rx) = futures::channel::oneshot::channel();
+
+                    // Executa a tarefa assíncrona
+                    spawn_local(async move {
+                        if let Some(file) = task.await {
+                            let loaded_data = file.read().await; // Carrega o conteúdo do arquivo
+                            let _ = tx.send(loaded_data); // Envia os dados através do canal
+                        } else {
+                            let _ = tx.send(Vec::new()); // Envia um vetor vazio se nenhum arquivo for selecionado
+                        }
+                    });
+
+                    // Armazena o receptor para verificar posteriormente
+                    *pending_image = Some(rx);
+                }
+
+                // Verifica se recebemos dados no canal
+                if let Some(rx) = pending_image {
+                    match rx.try_recv() {
+                        Ok(Some(loaded_data)) => {
+                            *data = loaded_data;
+                            *pending_image = None; // Limpa o receptor após receber os dados
+                        }
+                        Ok(None) => {
+                            // Dados ainda não disponíveis, manter o receptor
+                        }
+                        Err(_) => {
+                            // O canal foi fechado ou ocorreu um erro
+                            *pending_image = None;
+                        }
                     }
                 }
             }
-            _ => {
-                // Handle unexpected cases or provide a fallback
-                println!("Unhandled MyValueType variant");
-            }
         }
+
         Vec::new()
     }
 }
