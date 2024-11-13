@@ -1,6 +1,7 @@
 use crate::types::{MyDataType, MyNodeData, MyValueType};
 use crate::utils::*;
 use egui_node_graph::*;
+use image::ImageBuffer;
 
 // Function to build the MakeImage node
 pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_id: NodeId) {

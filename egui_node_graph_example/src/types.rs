@@ -445,48 +445,36 @@ impl NodeDataTrait for MyNodeData {
             if let MyValueType::Image { data, .. } = output_value {
                 if !data.is_empty() {
                     // Carregue a imagem usando a biblioteca `image`
-                    let image = image::load_from_memory(&data).expect("Failed to load image");
-                    let (width, height) = image.dimensions();
+                    let image = match image::load_from_memory(&data) {
+                        Ok(img) => img,
+                        Err(err) => {
+                            eprintln!("Failed to load image: {}", err);
+                            return responses;
+                        }
+                    };
                     let image_buffer = image.to_rgba8();
-                    let pixels = image_buffer.into_vec();
+                    let (width, height) = image_buffer.dimensions();
+                    let pixels = image_buffer.into_raw();
 
-                    // Verifique se os dados da imagem são válidos
-                    if width * height * 4 == pixels.len() as u32 {
-                        // Converta os dados da imagem para uma textura egui
-                        let texture_id = ui.ctx().load_texture(
-                            format!("node_image_{:?}", node_id),
-                            egui::ColorImage::from_rgba_unmultiplied(
-                                [width as usize, height as usize],
-                                &pixels,
-                            ),
-                            Default::default(),
-                        );
+                    // Converta os dados da imagem para uma textura egui
+                    let texture_id = ui.ctx().load_texture(
+                        format!("node_image_{:?}", node_id),
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [width as usize, height as usize],
+                            &pixels,
+                        ),
+                        Default::default(),
+                    );
 
-                        // Desenhe a imagem
-                        ui.add(
-                            egui::Image::new(&texture_id)
-                                .max_width(300.0)
-                                .rounding(10.0),
-                        );
-                    } else {
-                        // Imprima os valores no console do navegador
-                        console::log_1(
-                            &format!(
-                                "width: {}, height: {}, pixels.len(): {}",
-                                width,
-                                height,
-                                pixels.len()
-                            )
-                            .into(),
-                        );
-                    }
+                    // Desenhe a imagem
+                    ui.add(
+                        egui::Image::new(&texture_id)
+                            .max_width(300.0)
+                            .rounding(10.0),
+                    );
                 }
             }
-        } else {
-            // Imprima os valores no console do navegador
-            console::log_1(&"Invalid input: Expected an image".into());
         }
-
         // }
         responses
     }

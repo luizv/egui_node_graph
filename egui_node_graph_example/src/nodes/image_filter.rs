@@ -1,86 +1,60 @@
-use crate::types::{MyGraph, MyValueType};
-use crate::utils::Evaluator;
+use crate::types::{MyDataType, MyNodeData, MyValueType};
+use crate::utils::*;
 use egui_node_graph::*;
+use image::{ImageBuffer, Rgba};
 
-pub fn build_node(graph: &mut MyGraph, node_id: NodeId) {
+// Function to build the MakeImage node
+pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_id: NodeId) {
     graph.add_input_param(
         node_id,
-        "input_image".to_string(),
-        crate::types::MyDataType::Image,
+        "image".to_string(),
+        MyDataType::Image,
         MyValueType::default_image(),
         InputParamKind::ConnectionOrConstant,
         true,
     );
 
-    graph.add_output_param(
-        node_id,
-        "filtered_image".to_string(),
-        crate::types::MyDataType::Image,
-    );
+    graph.add_output_param(node_id, "out".to_string(), MyDataType::Image);
 }
 
-/// Function to evaluate an Image Filter node.
 pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
-    // Fetch the input image value.
-    let input_image = evaluator.evaluate_input("input_image")?;
+    let image_value = evaluator.evaluate_input("image")?;
 
-    // Ensure the input is of type `Image`.
-    let image_data = if let MyValueType::Image { data, .. } = input_image {
-        data
-    } else {
-        anyhow::bail!("Expected input of type Image, got {:?}", input_image);
-    };
-
-    // Here, you would perform the image filtering logic.
-    // For demonstration purposes, let's assume it inverts the image bytes.
-    let filtered_data: Vec<u8> = image_data.iter().map(|&byte| 255 - byte).collect();
-
-    // Output the filtered image.
-    evaluator.populate_output(
-        "filtered_image",
-        MyValueType::Image {
-            data: filtered_data,
-            pending_image: None,
-        },
-    )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::{MyGraphState, MyNodeData, MyNodeTemplate};
-    use crate::utils::{evaluate_node, OutputsCache};
-
-    #[test]
-    fn test_image_filter_node() {
-        let mut graph = MyGraph::new();
-        let node_id = graph.add_node(
-            "ImageFilter".to_string(),
-            MyNodeData {
-                template: MyNodeTemplate::ImageFilter, // Ensure this is defined in `MyNodeTemplate`.
-            },
-            |_, _| {},
-        );
-
-        build_node(&mut graph, node_id);
-
-        // Set input image data.
-        let input_id = graph[node_id].get_input("input_image").unwrap();
-        graph[input_id].value = MyValueType::Image {
-            data: vec![0, 128, 255],
-            pending_image: None,
+    if let MyValueType::Image { data, .. } = image_value {
+        // Carregue a imagem a partir dos dados
+        let image = match image::load_from_memory(&data) {
+            Ok(img) => img,
+            Err(err) => {
+                eprintln!("Failed to load image: {}", err);
+                anyhow::bail!("Failed to load image");
+            }
         };
+        let image_buffer = image.to_rgba8();
+        let (width, height) = image_buffer.dimensions();
 
-        let mut outputs_cache = OutputsCache::new();
+        // Converta a imagem para preto e branco.
+        let mut bw_data = ImageBuffer::new(width, height);
 
-        // Evaluate the node.
-        let result = evaluate_node(&graph, node_id, &mut outputs_cache).unwrap();
-
-        // Check the output value.
-        if let MyValueType::Image { data, .. } = result {
-            assert_eq!(data, vec![255, 127, 0]); // Expected inverted values.
-        } else {
-            panic!("Expected output of type Image, got {:?}", result);
+        for (x, y, pixel) in image_buffer.enumerate_pixels() {
+            let [r, g, b, a] = pixel.0;
+            let gray = ((r as u32 + g as u32 + b as u32) / 3) as u8;
+            bw_data.put_pixel(x, y, Rgba([gray, gray, gray, a]));
         }
+
+        // Codifique o ImageBuffer como PNG
+        let mut buffer = Vec::new();
+        let encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+        encoder.encode(&bw_data, width, height, image::ColorType::Rgba8)?;
+
+        // Output the black and white image.
+        evaluator.populate_output(
+            "out",
+            MyValueType::Image {
+                data: buffer,
+                pending_image: None,
+            },
+        )
+    } else {
+        anyhow::bail!("Invalid input: Expected an image");
     }
 }
