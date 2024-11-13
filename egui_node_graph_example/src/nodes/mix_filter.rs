@@ -4,7 +4,7 @@ use crate::types::{MyDataType, MyNodeData, MyValueType};
 use crate::utils::*;
 use egui_node_graph::*;
 
-// Function to build the MakeImage node
+// Função para construir o nó InvertFilter
 pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_id: NodeId) {
     graph.add_input_param(
         node_id,
@@ -17,9 +17,18 @@ pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_i
 
     graph.add_input_param(
         node_id,
-        "blur".to_string(),
+        "other_image".to_string(),
+        MyDataType::Image,
+        MyValueType::default_image(),
+        InputParamKind::ConnectionOrConstant,
+        true,
+    );
+
+    graph.add_input_param(
+        node_id,
+        "mix_factor_value".to_string(),
         MyDataType::Scalar,
-        MyValueType::Scalar { value: 2.0 },
+        MyValueType::Scalar { value: 50.0 },
         InputParamKind::ConnectionOrConstant,
         true,
     );
@@ -29,11 +38,21 @@ pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_i
 
 pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     let image_value = evaluator.evaluate_input("image")?;
+    let other_image_value = evaluator.evaluate_input("other_image")?;
+    let mix_factor_value = evaluator.evaluate_input("mix_factor_value")?;
 
-    if let MyValueType::Image { data, .. } = image_value {
+    if let (
+        MyValueType::Image { data, .. },
+        MyValueType::Image {
+            data: other_data, ..
+        },
+        MyValueType::Scalar { value: mix_factor },
+    ) = (image_value, other_image_value, mix_factor_value)
+    {
         let image = decode_image_from_memory(&data)?;
+        let other_image = decode_image_from_memory(&other_data)?;
 
-        let filter = FilterType::Blur(evaluator.input_scalar("blur")?);
+        let filter = FilterType::Mix(other_image, mix_factor as i32);
 
         let processed_image = FilterType::apply_filter(image, filter);
 
@@ -51,6 +70,6 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
             },
         )
     } else {
-        anyhow::bail!("Invalid input: Expected an image");
+        anyhow::bail!("Entrada inválida: Esperado uma imagem");
     }
 }

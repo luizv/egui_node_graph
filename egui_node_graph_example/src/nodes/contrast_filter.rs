@@ -4,7 +4,7 @@ use crate::types::{MyDataType, MyNodeData, MyValueType};
 use crate::utils::*;
 use egui_node_graph::*;
 
-// Function to build the MakeImage node
+// Função para construir o nó ContrastFilter
 pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_id: NodeId) {
     graph.add_input_param(
         node_id,
@@ -17,9 +17,9 @@ pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_i
 
     graph.add_input_param(
         node_id,
-        "blur".to_string(),
+        "value".to_string(),
         MyDataType::Scalar,
-        MyValueType::Scalar { value: 2.0 },
+        MyValueType::Scalar { value: 0.0 },
         InputParamKind::ConnectionOrConstant,
         true,
     );
@@ -29,13 +29,16 @@ pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_i
 
 pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     let image_value = evaluator.evaluate_input("image")?;
+    let value = evaluator.evaluate_input("value")?;
 
-    if let MyValueType::Image { data, .. } = image_value {
+    if let (MyValueType::Image { data, .. }, MyValueType::Scalar { value }) = (image_value, value) {
         let image = decode_image_from_memory(&data)?;
 
-        let filter = FilterType::Blur(evaluator.input_scalar("blur")?);
+        let filter = FilterType::Contrast(value);
 
         let processed_image = FilterType::apply_filter(image, filter);
+
+        // Processamento de imagem...
 
         // Converta a imagem processada para RGBA8
         let image_buffer = processed_image.to_rgba8();
@@ -51,6 +54,6 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
             },
         )
     } else {
-        anyhow::bail!("Invalid input: Expected an image");
+        anyhow::bail!("Entradas inválidas: Esperado uma imagem e um valor escalar");
     }
 }

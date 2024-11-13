@@ -4,22 +4,13 @@ use crate::types::{MyDataType, MyNodeData, MyValueType};
 use crate::utils::*;
 use egui_node_graph::*;
 
-// Function to build the MakeImage node
+// Função para construir o nó FlipHorizontalFilter
 pub fn build_node(graph: &mut Graph<MyNodeData, MyDataType, MyValueType>, node_id: NodeId) {
     graph.add_input_param(
         node_id,
         "image".to_string(),
         MyDataType::Image,
         MyValueType::default_image(),
-        InputParamKind::ConnectionOrConstant,
-        true,
-    );
-
-    graph.add_input_param(
-        node_id,
-        "blur".to_string(),
-        MyDataType::Scalar,
-        MyValueType::Scalar { value: 2.0 },
         InputParamKind::ConnectionOrConstant,
         true,
     );
@@ -33,9 +24,11 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
     if let MyValueType::Image { data, .. } = image_value {
         let image = decode_image_from_memory(&data)?;
 
-        let filter = FilterType::Blur(evaluator.input_scalar("blur")?);
+        let filter = FilterType::FlipHorizontal;
 
         let processed_image = FilterType::apply_filter(image, filter);
+
+        // Processamento de imagem...
 
         // Converta a imagem processada para RGBA8
         let image_buffer = processed_image.to_rgba8();
@@ -51,6 +44,6 @@ pub fn evaluate(evaluator: &mut Evaluator<'_>) -> anyhow::Result<MyValueType> {
             },
         )
     } else {
-        anyhow::bail!("Invalid input: Expected an image");
+        anyhow::bail!("Entrada inválida: Esperado uma imagem");
     }
 }
