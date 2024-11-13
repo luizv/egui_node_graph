@@ -3,9 +3,7 @@ use crate::utils::evaluate_node;
 use crate::utils::Evaluator;
 use derivative::Derivative;
 use eframe::egui::{self, DragValue};
-use eframe::web_sys::console;
 use egui_node_graph::*;
-use image::GenericImageView;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -125,8 +123,9 @@ pub enum MyNodeTemplate {
     AddVector,
     SubtractVector,
     VectorTimesScalar,
-    ImageFilter,
+    GrayscaleFilter,
     MakeImage,
+    BlurFilter,
 }
 
 /// The response type is used to encode side-effects produced when drawing a node in the graph.
@@ -211,10 +210,10 @@ impl NodeDefinition {
                 categories: &["Vector", "Scalar"],
             },
             NodeDefinition {
-                template: MyNodeTemplate::ImageFilter,
-                build: nodes::image_filter::build_node, // Define this in your nodes module
-                evaluate: nodes::image_filter::evaluate, // Define evaluation logic for image filtering
-                label: "Image Filter",
+                template: MyNodeTemplate::GrayscaleFilter,
+                build: nodes::grayscale_filter::build_node, // Define this in your nodes module
+                evaluate: nodes::grayscale_filter::evaluate, // Define evaluation logic for image filtering
+                label: "Grayscale Filter",
                 categories: &["Image"],
             },
             NodeDefinition {
@@ -222,6 +221,13 @@ impl NodeDefinition {
                 build: nodes::make_image::build_node,
                 evaluate: nodes::make_image::evaluate,
                 label: "Make Image",
+                categories: &["Image"],
+            },
+            NodeDefinition {
+                template: MyNodeTemplate::BlurFilter,
+                build: nodes::blur_filter::build_node,
+                evaluate: nodes::blur_filter::evaluate,
+                label: "Blur Filter",
                 categories: &["Image"],
             },
         ]

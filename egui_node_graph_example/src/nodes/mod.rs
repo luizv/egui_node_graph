@@ -1,6 +1,7 @@
 pub mod add_scalar;
 pub mod add_vector;
-pub mod image_filter;
+pub mod blur_filter;
+pub mod grayscale_filter;
 pub mod make_image;
 pub mod make_scalar;
 pub mod make_vector;

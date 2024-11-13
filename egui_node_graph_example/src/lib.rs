@@ -3,6 +3,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
+pub mod image_processing;
 pub mod nodes;
 pub mod types;
 pub mod utils;
