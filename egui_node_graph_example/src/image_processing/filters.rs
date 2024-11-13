@@ -31,12 +31,12 @@ impl FilterType {
             FilterType::Rotate90 => image.rotate90(),
             FilterType::HueRotate(degrees) => image.huerotate(degrees),
             FilterType::Mix(other_image, factor) => {
-                // Converta ambas as imagens para RGBA8
+                // Converte ambas as imagens para RGBA8
                 let mut base_img = image.to_rgba8();
                 let (base_width, base_height) = base_img.dimensions();
                 let other_img = other_image.to_rgba8();
 
-                // Redimensione a imagem secundária para cobrir a imagem principal
+                // Redimensiona a imagem secundária para cobrir a imagem principal
                 let resized_other_img = imageops::resize(
                     &other_img,
                     base_width,
@@ -47,7 +47,7 @@ impl FilterType {
                 // Clampe o fator de mistura entre 0 e 100
                 let factor = (factor as f32).clamp(0.0, 100.0) / 100.0;
 
-                // Misture as duas imagens
+                // Mistura as duas imagens
                 for (base_pixel, other_pixel) in
                     base_img.pixels_mut().zip(resized_other_img.pixels())
                 {

@@ -526,7 +526,7 @@ impl NodeDataTrait for MyNodeData {
                     let (width, height) = image_buffer.dimensions();
                     let pixels = image_buffer.into_raw();
 
-                    // Converta os dados da imagem para uma textura egui
+                    // Convert image data to egui
                     let texture_id = ui.ctx().load_texture(
                         format!("node_image_{:?}", node_id),
                         egui::ColorImage::from_rgba_unmultiplied(
@@ -536,7 +536,7 @@ impl NodeDataTrait for MyNodeData {
                         Default::default(),
                     );
 
-                    // Desenhe a imagem
+                    // Display the image
                     ui.add(
                         egui::Image::new(&texture_id)
                             .max_width(300.0)
@@ -634,21 +634,6 @@ mod tests {
         let vec2_color = MyDataType::Vec2.data_type_color(&mut MyGraphState::default());
         assert_ne!(scalar_color, vec2_color);
     }
-
-    // #[test]
-    // fn test_widget_value_trait_scalar() {
-    //     let mut scalar_value = MyValueType::Scalar { value: 10.0 };
-    //     // Skipping `Ui` mock creation as it's complex; you may need integration testing here.
-    //     // This part assumes you have a way to test UI interactions separately.
-    // }
-
-    // #[test]
-    // fn test_widget_value_trait_vec2() {
-    //     let mut vec2_value = MyValueType::Vec2 {
-    //         value: egui::Vec2::new(1.0, 2.0),
-    //     };
-    //     // Skipping `Ui` mock creation; similar reasoning as above.
-    // }
 
     #[test]
     fn test_graph_state_default() {
